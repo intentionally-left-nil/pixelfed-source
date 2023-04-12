@@ -97,6 +97,7 @@ use App\Jobs\FollowPipeline\FollowAcceptPipeline;
 use App\Jobs\FollowPipeline\FollowRejectPipeline;
 use Illuminate\Support\Facades\RateLimiter;
 use Purify;
+use Log;
 use Carbon\Carbon;
 
 class ApiV1Controller extends Controller
@@ -2737,6 +2738,8 @@ class ApiV1Controller extends Controller
 	 */
 	public function statusCreate(Request $request)
 	{
+    Log::info("aoeu: statusCreate called");
+		Log::error("aoeu test");
 		abort_if(!$request->user(), 403);
 
 		$this->validate($request, [
@@ -2834,6 +2837,23 @@ class ApiV1Controller extends Controller
 				abort(400, 'Invalid media_ids');
 			}
 
+			if (config_cache('pixelfed.cloud_storage') && !config('pixelfed.media_fast_process')) {
+      	Log::info("aoeu: Checking to see if publish is delayed");
+				if (Media::whereUserId($user->id)
+					->whereNull('cdn_url')
+					->find($ids)
+					->count() > 0) {
+						// There's still a small timing window if the last media publishes
+						// in between the query and this save. Worth fixing?
+      		Log::info("aoeu: setting publish_delayed to true");
+					$status->publish_delayed = true;
+					$status->save();
+				} else {
+      		Log::info("aoeu: do not need to set publish_delayed");
+				}
+			}
+
+
 			if(!$in_reply_to_id) {
 				$status = new Status;
 				$status->caption = $content;
@@ -2882,8 +2902,15 @@ class ApiV1Controller extends Controller
 		if(!$status) {
 			abort(500, 'An error occured.');
 		}
+		
+		if ($status->publish_delayed) {
+      Log::info("aoeu: Skipping NewStatusPipeline until the media is processed");
+      Log::info(json_encode($status)); 
+		} else {
+      Log::info("aoeu: Directly calling publish");
+			NewStatusPipeline::dispatch($status);
+		}
 
-		NewStatusPipeline::dispatch($status);
 		if($status->in_reply_to_id) {
         	CommentPipeline::dispatch($parent, $status);
 		}

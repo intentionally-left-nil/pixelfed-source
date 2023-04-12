@@ -54,6 +54,7 @@ use App\Util\Lexer\Autolink;
 use App\Util\Lexer\Extractor;
 use App\Util\Media\License;
 use Image;
+use Log;
 
 class ComposeController extends Controller
 {
@@ -457,6 +458,7 @@ class ComposeController extends Controller
 
 	public function store(Request $request)
 	{
+    Log::info("aoeu: store called");
 		$this->validate($request, [
 			'caption' => 'nullable|string|max:'.config('pixelfed.max_caption_length', 500),
 			'media.*'   => 'required',
@@ -515,6 +517,7 @@ class ComposeController extends Controller
 		$cw = $request->input('cw');
 		$tagged = $request->input('tagged');
 		$optimize_media = (bool) $request->input('optimize_media');
+		$media_ids = [];
 
 		foreach($medias as $k => $media) {
 			if($k + 1 > config_cache('pixelfed.max_album_length')) {
@@ -535,6 +538,7 @@ class ComposeController extends Controller
 			}
 			$m->save();
 			$attachments[] = $m;
+			array_push($media_ids, $m->id);
 			array_push($mimes, $m->mime);
 		}
 
@@ -568,6 +572,23 @@ class ComposeController extends Controller
 			$media->status_id = $status->id;
 			$media->save();
 		}
+
+		if (config_cache('pixelfed.cloud_storage') && !config('pixelfed.media_fast_process')) {
+			Log::info("aoeu: Checking to see if publish is delayed");
+			if (Media::whereUserId($user->id)
+				->whereNull('cdn_url')
+				->find($media_ids)
+				->count() > 0) {
+					// There's still a small timing window if the last media publishes
+					// in between the query and this save. Worth fixing?
+				Log::info("aoeu: setting publish_delayed to true");
+				$status->publish_delayed = true;
+				$status->save();
+			} else {
+				Log::info("aoeu: do not need to set publish_delayed");
+			}
+		}
+
 
 		$visibility = $profile->unlisted == true && $visibility == 'public' ? 'unlisted' : $visibility;
 		$visibility = $profile->is_private ? 'private' : $visibility;
@@ -618,7 +639,14 @@ class ComposeController extends Controller
 				});
 		}
 
-		NewStatusPipeline::dispatch($status);
+		if ($status->publish_delayed) {
+      Log::info("aoeu: Skipping NewStatusPipeline until the media is processed");
+      Log::info(json_encode($status)); 
+		} else {
+      Log::info("aoeu: Directly calling publish");
+			NewStatusPipeline::dispatch($status);
+		}
+
 		Cache::forget('user:account:id:'.$profile->user_id);
 		Cache::forget('_api:statuses:recent_9:'.$profile->id);
 		Cache::forget('profile:status_count:'.$profile->id);

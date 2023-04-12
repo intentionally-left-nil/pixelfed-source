@@ -11,6 +11,8 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Redis;
 
+use Log;
+
 class NewStatusPipeline implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
@@ -44,6 +46,8 @@ class NewStatusPipeline implements ShouldQueue
      */
     public function handle()
     {
+        Log::info("aoeu: NewStatusPipeline handle");
+        Log::info(json_encode($this->status->toActivityPubObject())); 
         StatusEntityLexer::dispatch($this->status);
     }
 }

@@ -11,11 +11,14 @@ use Illuminate\Support\Str;
 use App\Media;
 use App\Profile;
 use App\User;
+use App\Status;
 use GuzzleHttp\Client;
 use App\Services\AccountService;
 use App\Http\Controllers\AvatarController;
 use GuzzleHttp\Exception\RequestException;
 use App\Jobs\MediaPipeline\MediaDeletePipeline;
+use App\Jobs\StatusPipeline\NewStatusPipeline;
+use Log;
 
 class MediaStorageService {
 
@@ -108,6 +111,24 @@ class MediaStorageService {
 			Cache::forget('status:transformer:media:attachments:' . $media->status_id);
 			MediaService::del($media->status_id);
 			StatusService::del($media->status_id, false);
+			$status = Status::find($media->status_id);
+			if ($status && $status->publish_delayed) {
+				Log::info("aoeu: media was published, and publish_delayed is true. Checking to see if we can publish now");
+				if (Media::whereStatusId($media->status_id)->whereNull('cdn_url')->count() == 0) {
+					$status->publish_delayed = false;
+					// There's another timing condition here between the query and the save
+					// If multiple images finish processing at the same time they could both get
+					// into this if condition
+					$status->save();
+					Log::info("aoeu: Final media finished processing, triggering the job");
+					Log::info(json_encode($media)); 
+					Log::info(json_encode($status)); 
+					NewStatusPipeline::dispatch($status);
+				}
+			}
+		} else {
+			Log::info("aoeu: The media is not currently attached to a status");
+			Log::info(json_encode($media)); 
 		}
 	}
 

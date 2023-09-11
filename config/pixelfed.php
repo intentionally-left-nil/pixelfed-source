@@ -233,6 +233,7 @@ return [
 	*/
 	'user_invites' => [
 		'enabled' => env('PF_USER_INVITES', false),
+		'admin_only' => env('PF_USER_INVITES_ADMIN_ONLY', false),
 		'limit' => [
 			'total' => (int) env('PF_USER_INVITES_TOTAL_LIMIT', 0),
 			'daily' => (int) env('PF_USER_INVITES_DAILY_LIMIT', 0),

@@ -9,7 +9,7 @@
 			<li class="nav-item pl-3 {{request()->is('settings/email')?'active':''}}">
 				<a class="nav-link font-weight-light text-muted" href="{{route('settings.email')}}">Email</a>
 			</li>
-			@if(config('pixelfed.user_invites.enabled'))
+			@if(config('pixelfed.user_invites.enabled') && !config('pixelfed.user_invites.admin_required') || (Auth::user() && Auth::user()->is_admin === true))
 			<li class="nav-item pl-3 {{request()->is('settings/invites*')?'active':''}}">
 				<a class="nav-link font-weight-light text-muted" href="{{route('settings.invites')}}">Invites</a>
 			</li>

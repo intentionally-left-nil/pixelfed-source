@@ -13,6 +13,7 @@ class UserInviteController extends Controller
 	{
 		abort_if(!config('pixelfed.user_invites.enabled'), 404);
 		abort_unless(Auth::check(), 403);
+		abort_unless($request->user().is_admin === true || !config('pixelfed.user_invites.admin_only'), 403);
 		return view('settings.invites.create');
 	}
 

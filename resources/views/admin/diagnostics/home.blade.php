@@ -764,6 +764,11 @@
 	</tr>
 	<tr>
 		<td><span class="badge badge-primary">PIXELFED</span></td>
+		<td><strong>PF_USER_INVITES_ADMIN_ONLY</strong></td>
+		<td><span>{{config_cache('pixelfed.user_invites.admin_only') ? '✅ true' : '❌ false' }}</span></td>
+	</tr>
+	<tr>
+		<td><span class="badge badge-primary">PIXELFED</span></td>
 		<td><strong>PF_USER_INVITES_TOTAL_LIMIT</strong></td>
 		<td><span>"{{config_cache('pixelfed.user_invites.limit.total')}}"</span></td>
 	</tr>

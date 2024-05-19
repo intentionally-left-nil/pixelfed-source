@@ -9,6 +9,13 @@ entrypoint-set-script-name "$0"
 # Allow automatic applying of outstanding/new migrations on startup
 : "${DB_APPLY_NEW_MIGRATIONS_AUTOMATICALLY:=0}"
 
+if is-false "${DB_APPLY_NEW_MIGRATIONS_AUTOMATICALLY}"; then
+    log-info "Automatic applying of new database migrations is disabled"
+    log-info "Please set [DB_APPLY_NEW_MIGRATIONS_AUTOMATICALLY=1] in your [.env] file to enable this."
+
+    exit 0
+fi
+
 # Wait for the database to be ready
 await-database-ready
 
@@ -32,11 +39,5 @@ log-warning "New migrations available"
 # Print the output
 echo "$output"
 
-if is-false "${DB_APPLY_NEW_MIGRATIONS_AUTOMATICALLY}"; then
-    log-info "Automatic applying of new database migrations is disabled"
-    log-info "Please set [DB_APPLY_NEW_MIGRATIONS_AUTOMATICALLY=1] in your [.env] file to enable this."
-
-    exit 0
-fi
 
 run-as-runtime-user php artisan migrate --force

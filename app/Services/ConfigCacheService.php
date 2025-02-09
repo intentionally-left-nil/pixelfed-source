@@ -176,6 +176,7 @@ class ConfigCacheService
                 $cc = new ConfigCacheModel;
                 $cc->k = $key;
                 $cc->v = $protect ? $protected : $v;
+                $cc->shadows = $cc->v;
                 $cc->save();
 
                 return $v;
@@ -187,30 +188,20 @@ class ConfigCacheService
 
     public static function put($key, $val)
     {
-        $exists = ConfigCacheModel::whereK($key)->first();
+        $protect = in_array($key, self::PROTECTED_KEYS);
+        $value = $protect ? encrypt($val) : $val;
 
-        $protect = false;
-        $protected = null;
-        if (in_array($key, self::PROTECTED_KEYS)) {
-            $protect = true;
-            $protected = encrypt($val);
-        }
+        ConfigCacheModel::updateOrCreate(
+            ['k' => $key],
+            [
+                'v' => $value,
+                'shadows' => $protect ? encrypt(config($key)) : config($key)
+            ]
+        );
 
-        if ($exists) {
-            $exists->v = $protect ? $protected : $val;
-            $exists->save();
-            Cache::put(self::CACHE_KEY.$key, $val, now()->addHours(12));
-
-            return self::get($key);
-        }
-
-        $cc = new ConfigCacheModel;
-        $cc->k = $key;
-        $cc->v = $protect ? $protected : $val;
-        $cc->save();
-
-        Cache::put(self::CACHE_KEY.$key, $val, now()->addHours(12));
+        Cache::put(self::CACHE_KEY.$key, $value, now()->addHours(12));
 
         return self::get($key);
     }
+
 }
